@@ -78,6 +78,19 @@ It holds 30 fps on a 2015 laptop with Intel HD 6000 graphics. What it took:
 - an adaptive budget of simultaneous rigid bodies, driven by the measured step
   time, so fast machines get more flying debris and slow ones stay smooth.
 
+## World stats
+
+The card in the top-right corner shows everyone's all-time totals: people
+online now, visitors, visits, pillars, meteors, blasts and sows dropped by
+visitors, cells born and chunks shattered. Each page reports what happened
+since its last report every 15 seconds to a small counter service
+([`server/stats.py`](server/stats.py), Python standard library and SQLite)
+behind `/api/`.
+
+Privacy: no cookies, and no IP addresses are stored. A visitor is a random id
+the page keeps in `localStorage`; "online now" lives only in the server's
+memory.
+
 ## Run it locally
 
 ```sh
@@ -86,12 +99,15 @@ npm run dev        # http://localhost:5173
 npm run build      # static site in dist/
 ```
 
+For the world stats card locally, also run
+`STATE_DIRECTORY=/tmp python3 server/stats.py` (Vite proxies `/api` to it).
+
 `node tools/tune.mjs 60 pyro --seed=3` runs the real simulation headless for
 60 simulated seconds and prints population, falling cubes and timings; it is
 how the presets were picked.
 
-`deploy.sh` and `deploy/` publish the site to its own server (rsync plus an
-nginx vhost); adapt them for yours.
+`deploy.sh` and `deploy/` publish the site to its own server (rsync, an nginx
+vhost, and the stats service as a systemd unit); adapt them for yours.
 
 ## License
 

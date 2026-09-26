@@ -326,6 +326,39 @@ kbd {
   color: var(--accent);
 }
 
+#world {
+  padding: 8px 12px;
+  background: var(--glass);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--dim);
+  font-size: 11px;
+  line-height: 1.6;
+  text-align: right;
+}
+
+#world[hidden] {
+  display: none;
+}
+
+#world .head {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+#world b {
+  color: var(--text);
+  font: 600 12px ui-monospace, Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+#world #wOnline {
+  color: var(--accent);
+}
+
 #fps {
   color: var(--dim);
   font: 11px ui-monospace, Menlo, Consolas, monospace;

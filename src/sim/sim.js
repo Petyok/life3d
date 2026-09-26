@@ -105,7 +105,8 @@ export class Sim {
     this.lastSupport = 0;
     this.knockLeft = 0;
     this.nextMeteor = 4;
-    this.stats = { released: 0, dropped: 0, shattered: 0, knocked: 0, snapped: 0, lost: 0 };
+    // cumulative since page load (reset() keeps them): the world stats card reports these
+    this.stats = { released: 0, dropped: 0, shattered: 0, knocked: 0, snapped: 0, lost: 0, born: 0, generations: 0 };
     this.timing = { ca: 0, support: 0, voxels: 0, physics: 0 };
     this.load = 0.6; // start conservative; adaptLoad raises it on fast machines
     this.stepMs = 0;
@@ -269,6 +270,8 @@ export class Sim {
       this.ghosts.push({ i, s: g.vanishedState[k], age: g.age[i], t: now });
     }
     this.gen++;
+    this.stats.generations++;
+    this.stats.born += g.nBirths;
     const t1 = performance.now();
     this.timing.ca = t1 - t0;
     this.releaseUnsupported();

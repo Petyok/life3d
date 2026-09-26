@@ -9,9 +9,22 @@ const TOOLS = {
 
 const $ = (id) => document.getElementById(id);
 const fmt = new Intl.NumberFormat('en-US');
+const compact = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 });
+// world card element id -> key in the /api totals
+const WORLD_FIELDS = [
+  ['wVisitors', 'visitors'],
+  ['wVisits', 'visits'],
+  ['wPillar', 'pillar'],
+  ['wMeteor', 'meteor'],
+  ['wBlast', 'blast'],
+  ['wSow', 'sow'],
+  ['wBorn', 'born'],
+  ['wShattered', 'shattered'],
+];
 
 export class UI {
-  constructor(sim, view, loop) {
+  constructor(sim, view, loop, world) {
+    this.world = world;
     this.sim = sim;
     this.view = view;
     this.loop = loop;
@@ -173,10 +186,12 @@ export class UI {
     const D = sim.D;
     const cx = Math.min(W - 1, Math.max(0, p.x));
     const cz = Math.min(D - 1, Math.max(0, p.z));
-    if (this.tool === 'pillar') sim.dropPillar(cx, cz, undefined, true);
-    else if (this.tool === 'meteor') sim.dropMeteor(cx, cz, 4 + Math.floor(Math.random() * 3), true);
+    let used = true;
+    if (this.tool === 'pillar') used = !!sim.dropPillar(cx, cz, undefined, true);
+    else if (this.tool === 'meteor') used = !!sim.dropMeteor(cx, cz, 4 + Math.floor(Math.random() * 3), true);
     else if (this.tool === 'blast') sim.blast(p.x - n.x * 0.5, p.y - n.y * 0.5, p.z - n.z * 0.5, TOOLS.blast.radius);
     else if (this.tool === 'sow') sim.sow(p.x + n.x * 2, p.y + n.y * 2, p.z + n.z * 2, TOOLS.sow.radius);
+    if (used) this.world.count(this.tool);
   }
 
   update(dt) {
@@ -189,8 +204,19 @@ export class UI {
       $('sLive').textContent = fmt.format(sim.grid.population());
       $('sFall').textContent = fmt.format(sim.nDynamic);
       $('fps').textContent = `${Math.round(this.frames / this.fpsClock)} fps${this.loop.cap30 ? ' (cap 30, G)' : ''}`;
+      this.renderWorld();
       this.frames = 0;
       this.fpsClock = 0;
     }
+    this.world.update(dt);
+  }
+
+  // Everyone's all-time totals; hidden until the stats API has answered once.
+  renderWorld() {
+    const t = this.world.view();
+    if (!t) return;
+    $('world').hidden = false;
+    $('wOnline').textContent = fmt.format(Math.max(1, t.online)); // you are online even before your first report lands
+    for (const [id, key] of WORLD_FIELDS) $(id).textContent = compact.format(t[key]);
   }
 }

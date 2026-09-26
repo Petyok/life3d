@@ -12,6 +12,9 @@ export default defineConfig({
       },
     ],
   },
+  // local dev: run server/stats.py for the world stats card
+  server: { proxy: { '/api': 'http://127.0.0.1:8787' } },
+  preview: { proxy: { '/api': 'http://127.0.0.1:8787' } },
   optimizeDeps: { exclude: ['@dimforge/rapier3d'] },
   build: {
     target: 'es2022', // top-level await in main.js and the wasm loader

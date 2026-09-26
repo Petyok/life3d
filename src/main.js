@@ -3,6 +3,7 @@ import { initPhysics, Sim } from './sim/sim.js';
 import { PRESETS } from './sim/rules.js';
 import { Renderer } from './render/renderer.js';
 import { UI } from './ui.js';
+import { WorldStats } from './stats.js';
 
 await initPhysics();
 
@@ -24,7 +25,8 @@ sim.reset();
 const view = new Renderer(document.getElementById('view'), sim);
 // 30 fps cap by default keeps small laptops cool; G toggles it.
 const loop = { cap30: true, simMs: 0, renderMs: 0 };
-const ui = new UI(sim, view, loop);
+const world = new WorldStats(sim);
+const ui = new UI(sim, view, loop, world);
 document.getElementById('loading').classList.add('gone');
 
 let last = performance.now();
@@ -44,4 +46,4 @@ function frame(now) {
 }
 requestAnimationFrame(frame);
 
-window.__life = { sim, view, ui, loop };
+window.__life = { sim, view, ui, loop, world };
