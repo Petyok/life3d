@@ -302,3 +302,25 @@ kbd {
     bottom: max(12px, env(safe-area-inset-bottom));
   }
 }
+
+.credits {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  color: var(--dim);
+  font-size: 11px;
+}
+
+#panel.collapsed .credits {
+  margin-top: 8px;
+  padding-top: 6px;
+}
+
+.credits a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.credits a:hover {
+  text-decoration: underline;
+}

@@ -2,6 +2,14 @@
   "name": "life3d",
   "private": true,
   "version": "0.1.0",
+  "description": "3D Game of Life where cells have weight: unsupported structures fall, shatter and grow again",
+  "license": "MIT",
+  "author": "Petyok (https://github.com/Petyok)",
+  "homepage": "https://life.petruha.ge",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Petyok/life3d.git"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
