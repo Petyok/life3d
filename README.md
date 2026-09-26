@@ -87,9 +87,9 @@ since its last report every 15 seconds to a small counter service
 ([`server/stats.py`](server/stats.py), Python standard library and SQLite)
 behind `/api/`.
 
-Privacy: no cookies, and no IP addresses are stored. A visitor is a random id
-the page keeps in `localStorage`; "online now" lives only in the server's
-memory.
+Privacy: no cookies, and the counter service stores no IP addresses (nginx
+keeps its usual access log). A visitor is a random id the page keeps in
+`localStorage`; "online now" lives only in the service's memory.
 
 ## Run it locally
 
