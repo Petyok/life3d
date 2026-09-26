@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>LIFE³ · Game of Life with gravity</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='9' width='6' height='6' fill='%235cf2b0'/%3E%3Crect x='9' y='9' width='6' height='6' fill='%232fb5e8'/%3E%3Crect x='5' y='1' width='6' height='6' fill='%23ff8f3a' transform='rotate(12 8 4)'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+
+    <div id="loading">growing cells…</div>
+
+    <aside id="panel">
+      <header>
+        <h1>LIFE<sup>3</sup></h1>
+        <button id="collapse" title="Hide panel (H)">–</button>
+      </header>
+      <p class="tag">3D Game of Life, but the cells have weight. Lose your support and you fall, break, and grow again wherever you land.</p>
+      <div id="stats">
+        <div><b id="sGen">0</b><span>generation</span></div>
+        <div><b id="sLive">0</b><span>alive</span></div>
+        <div><b id="sFall">0</b><span>falling</span></div>
+      </div>
+      <div class="body">
+        <label class="row">
+          <span>Rule</span>
+          <select id="rule"></select>
+        </label>
+        <label class="row">
+          <span>Custom</span>
+          <input id="ruleText" spellcheck="false" placeholder="survive/birth/states/M" title="survive/birth/states/neighbourhood, e.g. 4/4/5/M. Enter to apply" />
+        </label>
+        <p id="ruleNote" class="note"></p>
+        <label class="row slider"><span>Speed</span><input id="speed" type="range" min="0.5" max="10" step="0.5" /><output id="speedOut"></output></label>
+        <label class="row slider" title="How far a cell can hang sideways or downwards from its support"><span>Grip</span><input id="grip" type="range" min="1" max="13" step="1" /><output id="gripOut"></output></label>
+        <label class="row slider" title="Impact that breaks falling chunks apart"><span>Brittle</span><input id="brittle" type="range" min="1" max="12" step="0.5" /><output id="brittleOut"></output></label>
+        <label class="row slider"><span>Gravity</span><input id="gravity" type="range" min="4" max="40" step="1" /><output id="gravityOut"></output></label>
+        <label class="row check"><input id="meteors" type="checkbox" /><span>Meteor showers (M)</span></label>
+        <div class="buttons">
+          <button id="play" title="Space">Pause</button>
+          <button id="step" title="N">Step</button>
+          <button id="soup" title="R">New soup</button>
+          <button id="clear" title="C">Clear</button>
+        </div>
+      </div>
+    </aside>
+
+    <nav id="tools">
+      <button data-tool="pillar" title="Drop a tall column that topples (1)"><kbd>1</kbd>Pillar</button>
+      <button data-tool="meteor" title="Drop a clump of live cells (2)"><kbd>2</kbd>Meteor</button>
+      <button data-tool="blast" title="Blow cells out of the lattice (3)"><kbd>3</kbd>Blast</button>
+      <button data-tool="sow" title="Sprinkle new live cells (4)"><kbd>4</kbd>Sow</button>
+    </nav>
+
+    <div id="help">drag orbit · right-drag pan · wheel zoom · click use tool · <kbd>Space</kbd> pause · <kbd>G</kbd> 30/60 fps</div>
+    <div id="fps"></div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
