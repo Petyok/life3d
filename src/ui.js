@@ -172,8 +172,8 @@ export class UI {
     const D = sim.D;
     const cx = Math.min(W - 1, Math.max(0, p.x));
     const cz = Math.min(D - 1, Math.max(0, p.z));
-    if (this.tool === 'pillar') sim.dropPillar(cx, cz);
-    else if (this.tool === 'meteor') sim.dropMeteor(cx, cz, 4 + Math.floor(Math.random() * 3));
+    if (this.tool === 'pillar') sim.dropPillar(cx, cz, undefined, true);
+    else if (this.tool === 'meteor') sim.dropMeteor(cx, cz, 4 + Math.floor(Math.random() * 3), true);
     else if (this.tool === 'blast') sim.blast(p.x - n.x * 0.5, p.y - n.y * 0.5, p.z - n.z * 0.5, TOOLS.blast.radius);
     else if (this.tool === 'sow') sim.sow(p.x + n.x * 2, p.y + n.y * 2, p.z + n.z * 2, TOOLS.sow.radius);
   }

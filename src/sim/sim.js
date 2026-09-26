@@ -31,6 +31,14 @@ const HALF = 0.47; // dynamic cube half extent: a small gap keeps fresh bodies o
 const STRENGTH_MAX_UI = 13; // slider value treated as "unbreakable"
 const CHUNK = 8; // voxel collider chunk edge; syncVoxels' >> 3 / & ~7 assume 8
 
+// Collision groups (membership << 16 | filter). Small debris does not collide
+// with other small debris: piles of loose cubes were most of the contact work,
+// and overlapping chips sort themselves out when they snap back into cells.
+const SMALL_BODY = 4;
+const GROUP_STATIC = (1 << 16) | 0b110;
+const GROUP_BIG = (2 << 16) | 0b111;
+const GROUP_SMALL = (4 << 16) | 0b011;
+
 // Free-cell search order when a resting cube snaps back into an occupied cell.
 const SNAP_TRY = [
   [0, 0, 0], [0, 1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1],
@@ -47,8 +55,11 @@ export const DEFAULTS = {
   knock: 7, // velocity change that knocks lattice cells loose
   wobble: 0.6, // random spin given to released bodies (rad/s)
   meteors: true,
-  maxDynamic: 600, // cubes simulated as rigid bodies at once (~12 µs each per step at rest)
-  maxBodies: 160,
+  // Physics budget at load 1: cubes / bodies simulated at once. `load` adapts
+  // it to the machine (0.5..2.5) from measured step time; resting cubes cost
+  // ~20-40 µs per step each on a Broadwell laptop.
+  maxDynamic: 350,
+  maxBodies: 110,
   maxBody: 150,
   seed: 1,
 };
@@ -96,6 +107,9 @@ export class Sim {
     this.nextMeteor = 4;
     this.stats = { released: 0, dropped: 0, shattered: 0, knocked: 0, snapped: 0, lost: 0 };
     this.timing = { ca: 0, support: 0, voxels: 0, physics: 0 };
+    this.load = 0.6; // start conservative; adaptLoad raises it on fast machines
+    this.stepMs = 0;
+    this.loadClock = 0;
     this.setRule(this.p.rule);
     this.buildWorld();
   }
@@ -110,6 +124,24 @@ export class Sim {
     return this.p.strength >= STRENGTH_MAX_UI ? STRENGTH_INF : Math.max(1, Math.round(this.p.strength));
   }
 
+  get maxDynamic() {
+    return Math.round(this.p.maxDynamic * this.load);
+  }
+
+  get maxBodies() {
+    return Math.round(this.p.maxBodies * this.load);
+  }
+
+  // Grow the physics budget on machines that step fast, shrink it where a
+  // step eats too much of a 30 fps frame.
+  adaptLoad(dt) {
+    this.loadClock += dt;
+    if (this.loadClock < 1) return;
+    this.loadClock = 0;
+    if (this.stepMs > 12) this.load = Math.max(0.5, this.load * 0.85);
+    else if (this.stepMs < 6 && this.nDynamic > this.maxDynamic * 0.6) this.load = Math.min(2.5, this.load * 1.1);
+  }
+
   buildWorld() {
     if (this.world) this.world.free();
     const { W, H, D } = this;
@@ -119,7 +151,8 @@ export class Sim {
     this.world.createCollider(
       RAPIER.ColliderDesc.cuboid(W / 2, 0.5, D / 2)
         .setTranslation(W / 2 - 0.5, -1, D / 2 - 0.5)
-        .setFriction(0.9),
+        .setFriction(0.9)
+        .setCollisionGroups(GROUP_STATIC),
       ground,
     );
     // The lattice collides as 8³ Voxels chunks, created on demand and dropped
@@ -216,7 +249,10 @@ export class Sim {
   makeChunk(x0, y0, z0) {
     const e = CHUNK - 1;
     const pins = new Int32Array([x0, y0, z0, x0 + e, y0 + e, z0 + e]);
-    const c = this.world.createCollider(RAPIER.ColliderDesc.voxels(pins, { x: 1, y: 1, z: 1 }).setFriction(0.9), this.voxelBody);
+    const c = this.world.createCollider(
+      RAPIER.ColliderDesc.voxels(pins, { x: 1, y: 1, z: 1 }).setFriction(0.9).setCollisionGroups(GROUP_STATIC),
+      this.voxelBody,
+    );
     c.setVoxel(x0, y0, z0, false);
     c.setVoxel(x0 + e, y0 + e, z0 + e, false);
     return c;
@@ -258,7 +294,7 @@ export class Sim {
       let dyn = this.nDynamic;
       let nb = this.bodies.length;
       for (const k of order) {
-        if (dyn + clusters[k].length > this.p.maxDynamic || nb >= this.p.maxBodies) continue;
+        if (dyn + clusters[k].length > this.maxDynamic || nb >= this.maxBodies) continue;
         phys[k] = 1;
         dyn += clusters[k].length;
         nb++;
@@ -369,6 +405,7 @@ export class Sim {
     if (rot) desc.setRotation(rot);
     const rb = this.world.createRigidBody(desc);
     const n = states.length;
+    const groups = n <= SMALL_BODY ? GROUP_SMALL : GROUP_BIG;
     let r2 = 0;
     let mx = 0;
     let my = 0;
@@ -385,7 +422,8 @@ export class Sim {
           .setTranslation(lx, ly, lz)
           .setDensity(1)
           .setFriction(0.8)
-          .setRestitution(0.05),
+          .setRestitution(0.05)
+          .setCollisionGroups(groups),
         rb,
       );
     }
@@ -432,7 +470,9 @@ export class Sim {
       b.pt = b.rb.translation();
       b.pq = b.rb.rotation();
     }
+    const ws = performance.now();
     this.world.step();
+    this.stepMs += (performance.now() - ws - this.stepMs) * 0.05;
     const { shatter, knock } = this.p;
     this.knockLeft = 10;
     const keep = [];
@@ -447,7 +487,7 @@ export class Sim {
         const dw = Math.hypot(av.x - b.w.x, av.y - b.w.y, av.z - b.w.z);
         const impact = dv + dw * b.radius * 0.5;
         if (impact > knock) this.knockFrom(b, impact);
-        if (impact > shatter && b.n > 1) b.shatterAt = impact;
+        if (impact > shatter && b.n > 1 && this.bodies.length < this.maxBodies * 1.5) b.shatterAt = impact;
         if (b.seeds && impact > shatter) {
           // a meteor brings life: a patch of soup grows where it hit, once the debris clears
           const t = rb.translation();
@@ -527,8 +567,15 @@ export class Sim {
     }
   }
 
-  dislodge(i, vx, vy, vz) {
-    if (this.nDynamic >= this.p.maxDynamic || this.bodies.length >= this.p.maxBodies) return null;
+  // Room for n more cubes in one body? User tools may use twice the ambient
+  // budget, so a click always does something even mid-collapse.
+  room(n, user) {
+    const k = user ? 2 : 1;
+    return this.nDynamic + n <= this.maxDynamic * k && this.bodies.length < this.maxBodies * k;
+  }
+
+  dislodge(i, vx, vy, vz, user = false) {
+    if (!this.room(1, user)) return null;
     const g = this.grid;
     const { W, D, L } = g;
     const states = new Uint8Array([g.state[i]]);
@@ -589,7 +636,7 @@ export class Sim {
     }
     const com = rotate(q, b.com[0], b.com[1], b.com[2], [0, 0, 0]);
     const rot = { x: q.x, y: q.y, z: q.z, w: q.w };
-    const kick = impact * 0.12;
+    const kick = impact * 0.22;
     this.removeBody(b);
     for (const members of groups) {
       const m = members.length;
@@ -687,7 +734,7 @@ export class Sim {
 
   // Tools ------------------------------------------------------------------
 
-  dropMeteor(x, z, size) {
+  dropMeteor(x, z, size, user = false) {
     const s = size ?? 3 + Math.floor(this.rng() * 3);
     const r = s / 2;
     const cells = [];
@@ -696,7 +743,7 @@ export class Sim {
         for (let dx = -r; dx <= r; dx++)
           if (dx * dx + dy * dy + dz * dz <= r * r + 0.5 && this.rng() < 0.7) cells.push(dx, dy, dz);
     const n = cells.length / 3;
-    if (!n || this.nDynamic + n > this.p.maxDynamic) return null;
+    if (!n || !this.room(n, user)) return null;
     const r2 = () => (this.rng() - 0.5) * 3;
     const body = this.createBody(x, this.H + 6, z, this.randomQuat(), new Float32Array(cells), new Uint8Array(n).fill(1),
       new Uint16Array(n), { x: r2(), y: -14, z: r2() }, { x: r2(), y: r2(), z: r2() });
@@ -731,10 +778,10 @@ export class Sim {
   }
 
   // A tall 2x2 column, tilted a little so it topples, lands and breaks up.
-  dropPillar(x, z, height) {
+  dropPillar(x, z, height, user = false) {
     const h = height ?? 12 + Math.floor(this.rng() * 7);
     const n = h * 4;
-    if (this.nDynamic + n > this.p.maxDynamic) return null;
+    if (!this.room(n, user)) return null;
     const local = new Float32Array(n * 3);
     let k = 0;
     for (let y = 0; y < h; y++)
@@ -784,7 +831,7 @@ export class Sim {
           if (g.state[i] === 0) continue;
           const f = (r - d + 1) * 3.2;
           const l = d || 1;
-          if (this.dislodge(i, (dx / l) * f, (dy / l) * f + 5, (dz / l) * f)) continue;
+          if (this.dislodge(i, (dx / l) * f, (dy / l) * f + 5, (dz / l) * f, true)) continue;
           // out of physics budget: the cell is vaporised instead
           this.ghosts.push({ i, s: g.state[i], age: g.age[i], t: this.time });
           g.state[i] = 0;
@@ -828,17 +875,20 @@ export class Sim {
     };
   }
 
-  // Advance by real time dt: fixed 60 Hz physics, CA ticks at tickRate.
+  // Advance by real time dt: fixed 30 Hz physics, CA ticks at tickRate.
+  // At most two physics steps per frame: when the machine falls behind, the
+  // world runs slower instead of spiralling into ever longer frames.
   update(dt) {
     this.acc += Math.min(dt, 0.1);
     let steps = 0;
-    while (this.acc >= DT && steps < 4) {
+    while (this.acc >= DT && steps < 2) {
       this.stepPhysics();
       this.acc -= DT;
       this.time += DT;
       steps++;
     }
-    if (steps === 4) this.acc = 0;
+    if (this.acc >= DT) this.acc = 0;
+    this.adaptLoad(Math.min(dt, 0.1));
     if (this.running) {
       this.tickClock += Math.min(dt, 0.1);
       const period = 1 / this.p.tickRate;

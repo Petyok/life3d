@@ -3,15 +3,17 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { makeCubeMesh } from './cubes.js';
 import { DT } from '../sim/sim.js';
 
-// Palette: newborn lime -> mint -> blue -> indigo with age; dying cells sink toward dusk.
+// Palette: living cells run mint -> cyan -> azure -> deep blue with age; husks
+// (dying states) are grey slate, so live tissue reads apart from dead
+// scaffolding; anything in flight glows ember.
 const AGE_STOPS = [
-  [0, new THREE.Color('#d7ff5c')],
-  [2, new THREE.Color('#5cf2b0')],
-  [8, new THREE.Color('#2fb5e8')],
-  [24, new THREE.Color('#3d6df0')],
-  [60, new THREE.Color('#6a4ce8')],
+  [0, new THREE.Color('#9dffc9')],
+  [3, new THREE.Color('#38e8ff')],
+  [14, new THREE.Color('#3d8bff')],
+  [48, new THREE.Color('#4a4dff')],
 ];
-const DUSK = new THREE.Color('#3b2d52');
+const HUSK_FRESH = new THREE.Color('#9aa3c7');
+const HUSK_OLD = new THREE.Color('#2b2e44');
 const EMBER = new THREE.Color('#ff8f3a');
 
 function ageColor(age, out) {
@@ -28,9 +30,9 @@ function ageColor(age, out) {
 
 // Colour for a cell of the given state/age under a rule with `states` states.
 function cellColor(state, age, states, out) {
-  ageColor(age, out);
-  if (state > 1) out.lerp(DUSK, 0.35 + 0.6 * ((state - 1) / Math.max(1, states - 1)));
-  return out;
+  if (state <= 1) return ageColor(age, out);
+  const decay = (state - 2) / Math.max(1, states - 3);
+  return out.copy(HUSK_FRESH).lerp(HUSK_OLD, Math.min(1, decay));
 }
 
 export class Renderer {
@@ -41,8 +43,8 @@ export class Renderer {
     r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
     r.shadowMap.enabled = true;
     r.shadowMap.type = THREE.PCFShadowMap;
-    r.toneMapping = THREE.ACESFilmicToneMapping;
-    r.toneMappingExposure = 1.05;
+    r.toneMapping = THREE.NeutralToneMapping; // keeps hues; ACES turned the palette muddy
+    r.toneMappingExposure = 1.0;
 
     const { W, H, D } = sim;
     const scene = (this.scene = new THREE.Scene());
@@ -78,7 +80,8 @@ export class Renderer {
     scene.add(this.makePlatform(W, D));
 
     this.cells = makeCubeMesh(W * H * D);
-    this.falling = makeCubeMesh(sim.p.maxDynamic + 64, { roughness: 0.45 });
+    // load may reach 2.5x the base budget and user tools double it again
+    this.falling = makeCubeMesh(sim.p.maxDynamic * 5 + 64, { roughness: 0.45 });
     // falling cubes never pop in, slide or vanish: their animation slots are constant
     const FA = this.falling.attrs.anim.array;
     for (let k = 0; k < FA.length; k += 4) FA.set([-10, -10, 0, 0.15], k);
@@ -105,7 +108,7 @@ export class Renderer {
         void main(){
           float h = vDir.y;
           // linear-space colours (tone mapping + sRGB conversion follow)
-          vec3 low = vec3(0.010, 0.007, 0.028), mid = vec3(0.032, 0.014, 0.075), top = vec3(0.003, 0.004, 0.016);
+          vec3 low = vec3(0.016, 0.010, 0.042), mid = vec3(0.060, 0.026, 0.125), top = vec3(0.004, 0.006, 0.022);
           vec3 c = h < 0.0 ? low : mix(mix(low, mid, smoothstep(0.0, 0.18, h)), top, smoothstep(0.18, 0.9, h));
           gl_FragColor = vec4(c, 1.0);
           #include <tonemapping_fragment>
@@ -201,7 +204,8 @@ export class Renderer {
     const g = sim.grid;
     const { W, H, D, L, N } = g;
     const st = g.state;
-    const { pos, col, anim, slide } = this.cells.attrs;
+    const { pos, col, anim, slide, heat } = this.cells.attrs;
+    const HT = heat.array;
     const P = pos.array;
     const C = col.array;
     const A = anim.array;
@@ -231,6 +235,7 @@ export class Renderer {
       A[n * 4 + 1] = sim.slideAt[i];
       A[n * 4 + 2] = 0;
       A[n * 4 + 3] = sim.slideDur[i];
+      HT[n] = s === 1 && g.age[i] < 2 ? 0.28 - g.age[i] * 0.12 : 0; // newborns glow faintly
       S[n * 3] = sim.slide[i * 3];
       S[n * 3 + 1] = sim.slide[i * 3 + 1];
       S[n * 3 + 2] = sim.slide[i * 3 + 2];
@@ -252,9 +257,10 @@ export class Renderer {
       A[n * 4 + 2] = gh.t;
       A[n * 4 + 3] = 0.15;
       S[n * 3] = S[n * 3 + 1] = S[n * 3 + 2] = 0;
+      HT[n] = 0;
       n++;
     }
-    this.cells.commit(n, ['pos', 'col', 'anim', 'slide']);
+    this.cells.commit(n, ['pos', 'col', 'anim', 'slide', 'heat']);
     this.cellCount = n;
   }
 
@@ -308,7 +314,7 @@ export class Renderer {
         Q[n * 4 + 1] = q.y;
         Q[n * 4 + 2] = q.z;
         Q[n * 4 + 3] = q.w;
-        cellColor(b.states[k], b.ages[k], states, c).lerp(EMBER, 0.25 + 0.6 * heat);
+        cellColor(b.states[k], b.ages[k], states, c).lerp(EMBER, 0.5 + 0.45 * heat);
         C[n * 3] = c.r;
         C[n * 3 + 1] = c.g;
         C[n * 3 + 2] = c.b;
