@@ -48,8 +48,9 @@ export class Renderer {
 
     const { W, H, D } = sim;
     const scene = (this.scene = new THREE.Scene());
-    scene.fog = new THREE.Fog('#141026', 90, 230);
-    scene.add(this.makeSky());
+    scene.fog = new THREE.Fog('#141026', 90, 230); // near/far follow the zoom in render()
+    this.sky = this.makeSky();
+    scene.add(this.sky);
 
     const cam = (this.camera = new THREE.PerspectiveCamera(42, 1, 0.5, 600));
     cam.position.set(W * 0.5 + 52, 46, D * 0.5 + 60);
@@ -59,7 +60,7 @@ export class Renderer {
     controls.dampingFactor = 0.08;
     controls.maxPolarAngle = Math.PI * 0.495;
     controls.minDistance = 12;
-    controls.maxDistance = 220;
+    controls.maxDistance = 170;
     controls.update();
 
     scene.add(new THREE.HemisphereLight('#9fb8ff', '#3a2a40', 1.1));
@@ -117,6 +118,7 @@ export class Renderer {
     });
     const sky = new THREE.Mesh(geo, mat);
     sky.renderOrder = -1;
+    sky.frustumCulled = false; // it rides on the camera, see render()
     return sky;
   }
 
@@ -335,6 +337,13 @@ export class Renderer {
     this.cells.setTime(sim.time);
     this.falling.setTime(sim.time);
     this.controls.update();
+    // The sky dome is centred on the camera, so zooming out never pushes its far
+    // side past the far plane (that clipped a black disc into the sky). Fog is
+    // relative to the zoom: a light depth cue across the platform at any distance.
+    this.sky.position.copy(this.camera.position);
+    const d = this.camera.position.distanceTo(this.controls.target);
+    this.scene.fog.near = d;
+    this.scene.fog.far = d + 160;
     this.renderer.render(this.scene, this.camera);
   }
 

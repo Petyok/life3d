@@ -282,10 +282,51 @@ kbd {
   pointer-events: none;
 }
 
-#fps {
+#corner {
   position: fixed;
-  top: 12px;
+  top: 14px;
   right: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+#credits {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--glass);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  font-size: 12px;
+  color: var(--dim);
+}
+
+#credits a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+#credits a:hover {
+  color: var(--accent);
+}
+
+#credits .repo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+#credits .by a {
+  color: var(--accent);
+}
+
+#fps {
   color: var(--dim);
   font: 11px ui-monospace, Menlo, Consolas, monospace;
   pointer-events: none;
@@ -301,26 +342,12 @@ kbd {
   #tools {
     bottom: max(12px, env(safe-area-inset-bottom));
   }
-}
-
-.credits {
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px solid var(--line);
-  color: var(--dim);
-  font-size: 11px;
-}
-
-#panel.collapsed .credits {
-  margin-top: 8px;
-  padding-top: 6px;
-}
-
-.credits a {
-  color: var(--accent);
-  text-decoration: none;
-}
-
-.credits a:hover {
-  text-decoration: underline;
+  #corner {
+    top: auto;
+    bottom: calc(max(12px, env(safe-area-inset-bottom)) + 62px);
+    right: 12px;
+  }
+  #fps {
+    display: none;
+  }
 }

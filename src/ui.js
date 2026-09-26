@@ -88,6 +88,7 @@ export class UI {
     });
     window.addEventListener('keydown', (e) => this.key(e));
     this.syncPlay();
+    if (window.innerWidth <= 720) this.togglePanel(); // on phones the full panel covers the world
   }
 
   slider(id, get, set, label) {
