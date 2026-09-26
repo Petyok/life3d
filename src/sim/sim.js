@@ -56,7 +56,7 @@ export const DEFAULTS = {
   wobble: 0.6, // random spin given to released bodies (rad/s)
   meteors: true,
   // Physics budget at load 1: cubes / bodies simulated at once. `load` adapts
-  // it to the machine (0.5..2.5) from measured step time; resting cubes cost
+  // it to the machine (0.35..2.5) from measured step time; resting cubes cost
   // ~20-40 µs per step each on a Broadwell laptop.
   maxDynamic: 350,
   maxBodies: 110,
@@ -138,7 +138,7 @@ export class Sim {
     this.loadClock += dt;
     if (this.loadClock < 1) return;
     this.loadClock = 0;
-    if (this.stepMs > 12) this.load = Math.max(0.5, this.load * 0.85);
+    if (this.stepMs > 12) this.load = Math.max(0.35, this.load * 0.85);
     else if (this.stepMs < 6 && this.nDynamic > this.maxDynamic * 0.6) this.load = Math.min(2.5, this.load * 1.1);
   }
 
